@@ -3,8 +3,14 @@ import commonjs from '@rollup/plugin-commonjs';
 import resolve from '@rollup/plugin-node-resolve';
 import livereload from 'rollup-plugin-livereload';
 import { terser } from 'rollup-plugin-terser';
-import css from 'rollup-plugin-css-only';
-import copy from 'rollup-plugin-copy'
+import preprocess from 'svelte-preprocess';
+import postcss from 'rollup-plugin-postcss'
+import { getBabelOutputPlugin } from '@rollup/plugin-babel';
+
+import {
+	chromeExtension,
+	simpleReloader,
+} from 'rollup-plugin-chrome-extension'
 
 const production = !process.env.ROLLUP_WATCH;
 
@@ -29,78 +35,103 @@ function serve() {
 	};
 }
 
-export default [{
-	input: 'src/main.js',
-	output: {
-		sourcemap: true,
-		format: 'iife',
-		name: 'app',
-		file: 'public/build/bundle.js'
-	},
-	plugins: [
-		copy({
-			targets: [
-				{ src: 'extension/**/*', dest: 'public' },]
-		}),
-		svelte({
-			compilerOptions: {
-				// enable run-time checks when not in production
-				dev: !production
-			}
-		}),
-		// we'll extract any component CSS out into
-		// a separate file - better for performance
-		css({ output: 'bundle.css' }),
+export default [
+	{
+		input: 'src/main.js',
+		output: {
+			sourcemap: true,
+			format: 'iife',
+			name: 'app',
+			file: 'public/build/bundle.js'
+		},
+		plugins: [
+			// copy({
+			// 	targets: [
+			// 		{ src: 'extension/**/*', dest: 'public' },]
+			// }),
 
-		// If you have external dependencies installed from
-		// npm, you'll most likely need these plugins. In
-		// some cases you'll need additional configuration -
-		// consult the documentation for details:
-		// https://github.com/rollup/plugins/tree/master/packages/commonjs
-		resolve({
-			browser: true,
-			dedupe: ['svelte']
-		}),
-		commonjs(),
+			svelte({
+				preprocess: preprocess(),
+				compilerOptions: {
+					// enable run-time checks when not in production
+					dev: !production
+				}
+			}),
+			// we'll extract any component CSS out into
+			// a separate file - better for performance
+			postcss({ minimize: production }),
 
-		// In dev mode, call `npm run start` once
-		// the bundle has been generated
-		!production && serve(),
+			// If you have external dependencies installed from
+			// npm, you'll most likely need these plugins. In
+			// some cases you'll need additional configuration -
+			// consult the documentation for details:
+			// https://github.com/rollup/plugins/tree/master/packages/commonjs
+			resolve({
+				browser: true,
+				dedupe: ['svelte']
+			}),
+			commonjs(),
 
-		// Watch the `public` directory and refresh the
-		// browser on changes when not in production
-		!production && livereload('public'),
+			// In dev mode, call `npm run start` once
+			// the bundle has been generated
+			!production && serve(),
 
-		// If we're building for production (npm run build
-		// instead of npm run dev), minify
-		production && terser()
-	],
-	watch: {
-		clearScreen: false
-	}
-},
-{
-	input: "src/background.js",
-	output: {
-		sourcemap: true,
-		format: "iife",
-		file: "public/build/background.js",
+			// Watch the `public` directory and refresh the
+			// browser on changes when not in production
+			!production && livereload('public'),
+
+			// If we're building for production (npm run build
+			// instead of npm run dev), minify
+			production && terser()
+		],
+		watch: {
+			clearScreen: false
+		}
 	},
-	plugins: [resolve(), commonjs()],
-	watch: {
-		clearScreen: false,
+	// {
+	// 	input: "src/global.scss",
+	// 	output: {
+	// 		file: "src/global"
+	// 	},
+	// 	plugins: [postcss({ minimize: production })]
+	// },
+	{
+		input: 'src/manifest.json',
+		output: {
+			dir: 'public',
+			format: 'esm',
+			plugins: [getBabelOutputPlugin({ presets: ['@babel/preset-env'] })]
+
+		},
+		plugins: [
+			// always put chromeExtension() before other plugins
+			chromeExtension({ browserPolyfill: true }),
+			simpleReloader(),
+			// the plugins below are optional
+			svelte({
+				preprocess: preprocess(),
+				compilerOptions: {
+					// enable run-time checks when not in production
+					dev: !production
+				}
+			}),
+			// we'll extract any component CSS out into
+			// a separate file - better for performance
+			postcss({ minimize: production }),
+
+			// If you have external dependencies installed from
+			// npm, you'll most likely need these plugins. In
+			// some cases you'll need additional configuration -
+			// consult the documentation for details:
+			// https://github.com/rollup/plugins/tree/master/packages/commonjs
+			resolve({
+				browser: true,
+				dedupe: ['svelte']
+			}),
+			commonjs(),
+			production && terser(),
+			production && zip({ dir: "releases" }),
+		],
 	},
-},
-{
-	input: "src/injection.js",
-	output: {
-		sourcemap: true,
-		format: "iife",
-		file: "public/build/injection.js",
-	},
-	plugins: [resolve(), commonjs()],
-	watch: {
-		clearScreen: false,
-	},
-},
+
 ]
