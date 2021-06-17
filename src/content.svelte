@@ -45,22 +45,37 @@
       }
     }
   })
+  const elemHasText = (elm) =>{
+    if (elm.children.length === 0){
+      return elm
+    }else if (elm.childNodes.length === 1){
+      return elemHasText(elm.childNodes[0])
+    }else{
+      return false
+    }
+  }
 
   const onGlobalClick = (e) => {
+    e.stopPropagation()
     e.preventDefault()
-    console.log('SDClick', e.path, e.srcElement.attributes)
+    console.log('SDClick', e.path, elemHasText(e.srcElement))
     start = false
     clear()
-    element = e.srcElement
-    attributes = [...e.srcElement.attributes, { nodeName: 'Text', nodeValue: e.srcElement.innerText }]
-    selected = e.path
-      .map((i) => {
-        return {
-          type: i.localName,
-          class: i.className,
-        }
-      })
-      .filter((i) => i.type)
+
+    element = elemHasText(e.srcElement)
+    if (element) {
+      attributes = [...element.attributes, { nodeName: 'Text', nodeValue: element.innerText }]
+
+    }
+    // selected = e.path
+    //   .map((i) => {
+    //     return {
+    //       type: i.localName,
+    //       class: i.className,
+    //     }
+    //   })
+    //   .filter((i) => i.type)
+
     window.removeEventListener('click', onGlobalClick)
   }
 
@@ -82,85 +97,50 @@
   let similarElms = []
   let data = ''
 
-  // $: {
-  //   let elmNodes = document.querySelectorAll(selected[0]?.type)
-  //   let text
-  //   attributes.forEach((i) => {
-  //     if (i.nodeName === 'Text') text = i.nodeValue
-  //   })
-  //   // console.log({ text, elms })
-  //   if (text) {
-  //     let elms = [...elmNodes]
-  //     var matches = stringSimilarity.findBestMatch(
-  //       text,
-  //       elms.map((i) => i.innerText)
-  //     )
-  //     console.log({ matches, elms })
-
-  //     matches.ratings.forEach((i, index) => {
-  //       if (i.rating >= similarRate) {
-  //         similarElms.push(elms[index])
-  //       }
-  //     })
-  //     if (selectValue.length === 1) {
-  //       data = similarElms.map((i) => getAttrValue(i, selectValue))
-  //     } else {
-  //       data = JSON.stringify(
-  //         similarElms.map((i) => {
-  //           let obj = {}
-  //           selectValue.forEach((attr) => {
-  //             obj[attr] = getAttrValue(i, attr)
-  //           })
-  //           return obj
-  //         }),
-  //         null,
-  //         2
-  //       )
-  //     }
-  //   }
-  // }
-
   $: {
-    let elmNodes = document.querySelectorAll(selected[0]?.type)
-    // console.log(elms, elms.length)
-    // console.log(selectValue, selectValue.length)
-    let text
-    attributes.forEach((i) => {
-      if (i.nodeName === 'Text') text = i.nodeValue
-    })
-    // console.log({ text, elms })
-    if (text) {
-      let elms = [...elmNodes]
-      var matches = stringSimilarity.findBestMatch(
-        text,
-        elms.map((i) => i.innerText)
-      )
-      // console.log({ matches, elms })
-      similarElms = []
-      matches.ratings.forEach((i, index) => {
-        if (i.rating >= similarRate) {
-          let el = elms[index]
-          if (!visible || isVisible(el)) {
-            similarElms.push(el)
-          }
-        }
+    if (element) {
+      let elmNodes = document.querySelectorAll(element?.localName)
+      // console.log(element, element.localName)
+      // console.log(selectValue, selectValue.length)
+      let text
+      attributes.forEach((i) => {
+        if (i.nodeName === 'Text') text = i.nodeValue
       })
+      // console.log({ text, elms })
+      if (text) {
+        let elms = [...elmNodes].filter(i=>!isVisible || isVisible(i))
+        similarElms = []
 
-      if (selectValue.length === 1) {
-        data = similarElms.map((i) => getAttrValue(i, selectValue))
-      } else {
-        data = JSON.stringify(
-          similarElms.map((i) => {
-            let obj = {}
-            selectValue.forEach((attr) => {
-              obj[attr] = getAttrValue(i, attr)
-            })
-            return obj
-          }),
-          null,
-          2
+        var matches = stringSimilarity.findBestMatch(
+          text,
+          elms.map((i) => i.innerText)
         )
-      }
+
+
+        matches.ratings.forEach((i, index) => {
+          if (i.rating >= similarRate) {
+            similarElms.push(elms[index])
+          }
+        })
+        console.log({ matches, similarElms })
+        if (selectValue.length === 1) {
+          data = similarElms
+          .map((i) => getAttrValue(i, selectValue[0]))
+          .join('\n')
+        } else {
+          data = JSON.stringify(
+            similarElms.map((i) => {
+              let obj = {}
+              selectValue.forEach((attr) => {
+                obj[attr] = getAttrValue(i, attr)
+              })
+              return obj
+            }),
+            null,
+            2
+          )
+        }
+    }
       // if (selectValue.length === 1) {
       //   data = getData(elms, selecObj.index)
       //     .map((i) => getAttrValue(i, selectValue[0]))
@@ -180,6 +160,7 @@
       // }
     }
   }
+
   function isVisible(element) {
     if (!isVisibleByStyles(element)) return false
     if (isBehindOtherElement(element)) return false
@@ -208,6 +189,7 @@
   }
   const getAttrValue = (i, attr) => {
     if (attr === 'Text') {
+      // console.log('text',i)
       return i.innerText
     } else {
       return i[attr]
@@ -303,7 +285,7 @@ transform:translateX(${hidden ? '324px' : start ? 'calc(320px - 2em)' : '0px'})`
     {/each}
   </div> -->
   <!-- <div>{selectTag}</div> -->
-  <div class="h1">Data</div>
+  <div class="h1">Attributes</div>
   <div class="SDcontent">
     {#each attributes as a}
       <div class="values attributes">
@@ -314,13 +296,21 @@ transform:translateX(${hidden ? '324px' : start ? 'calc(320px - 2em)' : '0px'})`
     {/each}
   </div>
   <!-- <p>text: {element.innerText || ''}</p> -->
-  <div class="h1">Output ({similarElms?.length || 0})</div>
+  <div class="h1">Find ({similarElms?.length || 0})</div>
   <!-- <div>{selectValue}</div> -->
   <textarea value={data} />
 </main>
 
 <style lang="scss">
+@font-face {
+  font-family: system;
+  font-style: normal;
+  font-weight: 400;
+  src: local('.SFNSText-Light'), local('.HelveticaNeueDeskInterface-Light'), local('.LucidaGrandeUI'), local('Ubuntu Light'), local('Segoe UI Light'),
+    local('Roboto-Light'), local('DroidSans'), local('Tahoma');
+}
   .userscript {
+
     label {
       display: flex;
       padding: 0.5em 0;
@@ -334,11 +324,20 @@ transform:translateX(${hidden ? '324px' : start ? 'calc(320px - 2em)' : '0px'})`
     }
     button {
       margin: 1em 0 0 0;
+      background-color: dodgerblue;
+      color:white;
+    box-sizing: border-box;
+    font: system;
+    padding: 0.5em 1em;
+    border: none;
+    border-radius: 0.25em;
     }
     .SDcontent {
       max-height: 320px;
       overflow-y: scroll;
+       font-family: system;
     }
+     font-family: system;
     font-size: 16px;
     transition: transform 0.2s ease-in-out;
     position: fixed;
@@ -357,7 +356,7 @@ transform:translateX(${hidden ? '324px' : start ? 'calc(320px - 2em)' : '0px'})`
       color: gray;
       padding: 1em 0 0.5em 0;
       margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+      font-family: system;
     }
     textarea {
       display: block;
@@ -377,15 +376,17 @@ transform:translateX(${hidden ? '324px' : start ? 'calc(320px - 2em)' : '0px'})`
       border-bottom: 1px solid #eee;
 
       input {
+        flex: 1;
         margin: 0 0.5em;
       }
       .dataName {
-        flex: 1;
+        flex: 2;
       }
       .dataString {
-        flex: 5;
+        flex: 7;
         overflow-x: auto;
         text-overflow: ellipsis;
+        font-size: 0.75em;
       }
     }
   }
