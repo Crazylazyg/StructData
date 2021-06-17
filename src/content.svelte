@@ -1,5 +1,8 @@
 <script>
+  import stringSimilarity from 'string-similarity'
   let start = false
+  let similarRate = 0.9
+  let visible = true
   let element = {}
   let attributes = []
   let selected = []
@@ -65,6 +68,7 @@
     element = {}
     selected = []
     attributes = []
+    similarElms = []
   }
 
   const startInspect = () => {
@@ -75,30 +79,132 @@
     }, 100)
   }
 
-  let elms
+  let similarElms = []
   let data = ''
+
+  // $: {
+  //   let elmNodes = document.querySelectorAll(selected[0]?.type)
+  //   let text
+  //   attributes.forEach((i) => {
+  //     if (i.nodeName === 'Text') text = i.nodeValue
+  //   })
+  //   // console.log({ text, elms })
+  //   if (text) {
+  //     let elms = [...elmNodes]
+  //     var matches = stringSimilarity.findBestMatch(
+  //       text,
+  //       elms.map((i) => i.innerText)
+  //     )
+  //     console.log({ matches, elms })
+
+  //     matches.ratings.forEach((i, index) => {
+  //       if (i.rating >= similarRate) {
+  //         similarElms.push(elms[index])
+  //       }
+  //     })
+  //     if (selectValue.length === 1) {
+  //       data = similarElms.map((i) => getAttrValue(i, selectValue))
+  //     } else {
+  //       data = JSON.stringify(
+  //         similarElms.map((i) => {
+  //           let obj = {}
+  //           selectValue.forEach((attr) => {
+  //             obj[attr] = getAttrValue(i, attr)
+  //           })
+  //           return obj
+  //         }),
+  //         null,
+  //         2
+  //       )
+  //     }
+  //   }
+  // }
+
   $: {
-    let selecObj = JSON.parse(selectTag || '{}')
-    elms = document.querySelectorAll(selecObj.tag || 'html')
+    let elmNodes = document.querySelectorAll(selected[0]?.type)
     // console.log(elms, elms.length)
-    console.log(selectValue, selectValue.length)
-    if (selectValue.length === 1) {
-      data = getData(elms, selecObj.index)
-        .map((i) => getAttrValue(i, selectValue[0]))
-        .join('\n')
-    } else {
-      data = JSON.stringify(
-        getData(elms, selecObj.index).map((i) => {
-          let obj = {}
-          selectValue.forEach((attr) => {
-            obj[attr] = getAttrValue(i, attr)
-          })
-          return obj
-        }),
-        null,
-        2
+    // console.log(selectValue, selectValue.length)
+    let text
+    attributes.forEach((i) => {
+      if (i.nodeName === 'Text') text = i.nodeValue
+    })
+    // console.log({ text, elms })
+    if (text) {
+      let elms = [...elmNodes]
+      var matches = stringSimilarity.findBestMatch(
+        text,
+        elms.map((i) => i.innerText)
       )
+      // console.log({ matches, elms })
+      similarElms = []
+      matches.ratings.forEach((i, index) => {
+        if (i.rating >= similarRate) {
+          let el = elms[index]
+          if (!visible || isVisible(el)) {
+            similarElms.push(el)
+          }
+        }
+      })
+
+      if (selectValue.length === 1) {
+        data = similarElms.map((i) => getAttrValue(i, selectValue))
+      } else {
+        data = JSON.stringify(
+          similarElms.map((i) => {
+            let obj = {}
+            selectValue.forEach((attr) => {
+              obj[attr] = getAttrValue(i, attr)
+            })
+            return obj
+          }),
+          null,
+          2
+        )
+      }
+      // if (selectValue.length === 1) {
+      //   data = getData(elms, selecObj.index)
+      //     .map((i) => getAttrValue(i, selectValue[0]))
+      //     .join('\n')
+      // } else {
+      //   data = JSON.stringify(
+      //     getData(elms, selecObj.index).map((i) => {
+      //       let obj = {}
+      //       selectValue.forEach((attr) => {
+      //         obj[attr] = getAttrValue(i, attr)
+      //       })
+      //       return obj
+      //     }),
+      //     null,
+      //     2
+      //   )
+      // }
     }
+  }
+  function isVisible(element) {
+    if (!isVisibleByStyles(element)) return false
+    if (isBehindOtherElement(element)) return false
+    return true
+  }
+
+  function isVisibleByStyles(element) {
+    const styles = window.getComputedStyle(element)
+    return styles.visibility !== 'hidden' && styles.display !== 'none'
+  }
+
+  function isBehindOtherElement(element) {
+    const boundingRect = element.getBoundingClientRect()
+    // adjust coordinates to get more accurate results
+    const left = boundingRect.left + 1
+    const right = boundingRect.right - 1
+    const top = boundingRect.top + 1
+    const bottom = boundingRect.bottom - 1
+
+    if (document.elementFromPoint(left, top) !== element) return true
+    if (document.elementFromPoint(right, top) !== element) return true
+    if (document.elementFromPoint(left, bottom) !== element) return true
+    if (document.elementFromPoint(right, bottom) !== element) return true
+
+    return false
   }
   const getAttrValue = (i, attr) => {
     if (attr === 'Text') {
@@ -158,8 +264,18 @@
 display:${!initHidden ? 'none' : 'block'};
 transform:translateX(${hidden ? '324px' : start ? 'calc(320px - 2em)' : '0px'})`}
 >
-  <button on:click={startInspect}>{!start ? 'Start' : 'End'}</button>
-  <div class="h1">Select</div>
+  <label>
+    <button on:click={startInspect}>{!start ? 'Select Element' : 'End'}</button>
+  </label>
+  <label>
+    <span>Similarity</span>
+    <input min="0" max="1" step="0.001" type="range" bind:value={similarRate} />
+  </label>
+  <label>
+    <span>Visibility</span>
+    <input type="checkbox" name="visible" bind:checked={visible} />
+  </label>
+  <!-- <div class="h1">Select</div>
   <div class="SDcontent">
     {#each selected as tag, index}
       <div class="values">
@@ -185,7 +301,7 @@ transform:translateX(${hidden ? '324px' : start ? 'calc(320px - 2em)' : '0px'})`
         </label>
       </div>
     {/each}
-  </div>
+  </div> -->
   <!-- <div>{selectTag}</div> -->
   <div class="h1">Data</div>
   <div class="SDcontent">
@@ -198,13 +314,24 @@ transform:translateX(${hidden ? '324px' : start ? 'calc(320px - 2em)' : '0px'})`
     {/each}
   </div>
   <!-- <p>text: {element.innerText || ''}</p> -->
-  <div class="h1">Output ({elms.length})</div>
+  <div class="h1">Output ({similarElms?.length || 0})</div>
   <!-- <div>{selectValue}</div> -->
   <textarea value={data} />
 </main>
 
 <style lang="scss">
   .userscript {
+    label {
+      display: flex;
+      padding: 0.5em 0;
+      span {
+        flex: 1;
+        padding-right: 1em;
+      }
+      input[type='range'] {
+        flex: 4;
+      }
+    }
     button {
       margin: 1em 0 0 0;
     }
@@ -227,7 +354,7 @@ transform:translateX(${hidden ? '324px' : start ? 'calc(320px - 2em)' : '0px'})`
     border-radius: 0 0 0 1em;
     .h1 {
       font-size: 1.5em;
-      color: red;
+      color: gray;
       padding: 1em 0 0.5em 0;
       margin: 0;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
@@ -246,13 +373,8 @@ transform:translateX(${hidden ? '324px' : start ? 'calc(320px - 2em)' : '0px'})`
       span {
         color: lightblue;
       }
-      b {
-        color: lightcoral !important;
-      }
 
       border-bottom: 1px solid #eee;
-      &.attributes {
-      }
 
       input {
         margin: 0 0.5em;
