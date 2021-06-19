@@ -3,6 +3,7 @@
   let start = false
   let similarRate = 0.9
   let visible = true
+  let onScreen = false
   let element = {}
   let attributes = []
   let selected = []
@@ -45,19 +46,19 @@
       }
     }
   })
-  const elemHasText = (elm) =>{
-    if (elm.children.length === 0){
+  const elemHasText = (elm) => {
+    if (elm.children.length === 0) {
       return elm
-    }else if (elm.childNodes.length === 1){
+    } else if (elm.childNodes.length === 1) {
       return elemHasText(elm.childNodes[0])
-    }else{
+    } else {
       return false
     }
   }
 
   const onGlobalClick = (e) => {
+    // e.preventDefault()
     e.stopPropagation()
-    e.preventDefault()
     console.log('SDClick', e.path, elemHasText(e.srcElement))
     start = false
     clear()
@@ -65,7 +66,7 @@
     element = elemHasText(e.srcElement)
     if (element) {
       attributes = [...element.attributes, { nodeName: 'Text', nodeValue: element.innerText }]
-
+      selectValue = ['Text']
     }
     // selected = e.path
     //   .map((i) => {
@@ -108,25 +109,22 @@
       })
       // console.log({ text, elms })
       if (text) {
-        let elms = [...elmNodes].filter(i=>!isVisible || isVisible(i))
+        let elms = [...elmNodes].filter((i) => !isVisible || isVisible(i))
         similarElms = []
 
         var matches = stringSimilarity.findBestMatch(
-          text,
-          elms.map((i) => i.innerText)
+          '#' + text,
+          elms.map((i) => '#' + i.innerText)
         )
-
 
         matches.ratings.forEach((i, index) => {
           if (i.rating >= similarRate) {
             similarElms.push(elms[index])
           }
         })
-        console.log({ matches, similarElms })
+        // console.log({ matches, similarElms })
         if (selectValue.length === 1) {
-          data = similarElms
-          .map((i) => getAttrValue(i, selectValue[0]))
-          .join('\n')
+          data = similarElms.map((i) => getAttrValue(i, selectValue[0])).join('\n')
         } else {
           data = JSON.stringify(
             similarElms.map((i) => {
@@ -140,7 +138,7 @@
             2
           )
         }
-    }
+      }
       // if (selectValue.length === 1) {
       //   data = getData(elms, selecObj.index)
       //     .map((i) => getAttrValue(i, selectValue[0]))
@@ -162,8 +160,8 @@
   }
 
   function isVisible(element) {
-    if (!isVisibleByStyles(element)) return false
-    if (isBehindOtherElement(element)) return false
+    if (!isRandered(element)) return false
+    if (onScreen && isBehindOtherElement(element)) return false
     return true
   }
 
@@ -171,7 +169,10 @@
     const styles = window.getComputedStyle(element)
     return styles.visibility !== 'hidden' && styles.display !== 'none'
   }
-
+  const isRandered = (element) => {
+    const boundingRect = element.getBoundingClientRect()
+    return boundingRect.width !== 0 && boundingRect.height !== 0
+  }
   function isBehindOtherElement(element) {
     const boundingRect = element.getBoundingClientRect()
     // adjust coordinates to get more accurate results
@@ -235,7 +236,7 @@
     height:${1}px;
     top:${boxSize.top + boxSize.height}px;
     left:${boxSize.left}px;
-    border-bottom:1px solid red;
+    border-bottom:2px solid cornflowerblue;
     z-index: 999;
     opacity:${start ? 1 : 0};
     `}
@@ -251,11 +252,15 @@ transform:translateX(${hidden ? '324px' : start ? 'calc(320px - 2em)' : '0px'})`
   </label>
   <label>
     <span>Similarity</span>
-    <input min="0" max="1" step="0.001" type="range" bind:value={similarRate} />
+    : <input min="0" max="1" step="0.001" type="range" bind:value={similarRate} />
   </label>
   <label>
     <span>Visibility</span>
-    <input type="checkbox" name="visible" bind:checked={visible} />
+    : <input type="checkbox" name="visible" bind:checked={visible} />
+  </label>
+  <label>
+    <span>On Screen</span>
+    : <input type="checkbox" name="onScreen" bind:checked={onScreen} />
   </label>
   <!-- <div class="h1">Select</div>
   <div class="SDcontent">
@@ -302,42 +307,47 @@ transform:translateX(${hidden ? '324px' : start ? 'calc(320px - 2em)' : '0px'})`
 </main>
 
 <style lang="scss">
-@font-face {
-  font-family: system;
-  font-style: normal;
-  font-weight: 400;
-  src: local('.SFNSText-Light'), local('.HelveticaNeueDeskInterface-Light'), local('.LucidaGrandeUI'), local('Ubuntu Light'), local('Segoe UI Light'),
-    local('Roboto-Light'), local('DroidSans'), local('Tahoma');
-}
+  @font-face {
+    font-family: system;
+    font-style: normal;
+    font-weight: 400;
+    src: local('.SFNSText-Light'), local('.HelveticaNeueDeskInterface-Light'), local('.LucidaGrandeUI'), local('Ubuntu Light'), local('Segoe UI Light'),
+      local('Roboto-Light'), local('DroidSans'), local('Tahoma');
+  }
   .userscript {
-
     label {
       display: flex;
       padding: 0.5em 0;
+      justify-content: flex-start;
       span {
-        flex: 1;
+        /* flex: 1; */
+        width: 24%;
         padding-right: 1em;
+      }
+      input[type='checkbox'] {
+        margin-left: auto;
       }
       input[type='range'] {
         flex: 4;
+        margin-left: 1em;
       }
     }
     button {
-      margin: 1em 0 0 0;
+      margin: 1em 0;
       background-color: dodgerblue;
-      color:white;
-    box-sizing: border-box;
-    font: system;
-    padding: 0.5em 1em;
-    border: none;
-    border-radius: 0.25em;
+      color: white;
+      box-sizing: border-box;
+      font: system;
+      padding: 0.5em 1em;
+      border: none;
+      border-radius: 0.25em;
     }
     .SDcontent {
       max-height: 320px;
       overflow-y: scroll;
-       font-family: system;
+      font-family: system;
     }
-     font-family: system;
+    font-family: system;
     font-size: 16px;
     transition: transform 0.2s ease-in-out;
     position: fixed;
@@ -369,6 +379,7 @@ transform:translateX(${hidden ? '324px' : start ? 'calc(320px - 2em)' : '0px'})`
     .values {
       display: flex;
       align-items: center;
+      padding: 0.2em 0;
       span {
         color: lightblue;
       }
