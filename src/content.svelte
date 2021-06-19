@@ -11,6 +11,7 @@
   let selectValue = []
   let hidden = false
   let initHidden = hidden
+  let show = false
   let boxSize = {
     width: 0,
     height: 0,
@@ -241,12 +242,7 @@
     opacity:${start ? 1 : 0};
     `}
 />
-<main
-  class="userscript"
-  style={`
-display:${!initHidden ? 'none' : 'block'};
-transform:translateX(${hidden ? '324px' : start ? 'calc(320px - 2em)' : '0px'})`}
->
+<main class="userscript" class:disabled={initHidden} class:hidden class:start class:show>
   <label>
     <button on:click={startInspect}>{!start ? 'Select Element' : 'End'}</button>
   </label>
@@ -307,6 +303,26 @@ transform:translateX(${hidden ? '324px' : start ? 'calc(320px - 2em)' : '0px'})`
 </main>
 
 <style lang="scss">
+  @media (prefers-color-scheme: dark) {
+    .userscript {
+      border-left: 0.5px solid #3d3d3d;
+      border-bottom: 0.5px solid #3d3d3d;
+    }
+    .userscript,
+    .h1,
+    textarea {
+      color: #aaaaaa;
+    }
+    textarea::selection {
+      color: #ffffff;
+      background-color: dodgerblue;
+    }
+    main.userscript,
+    textarea {
+      background-color: #343536;
+    }
+  }
+
   @font-face {
     font-family: system;
     font-style: normal;
@@ -315,6 +331,22 @@ transform:translateX(${hidden ? '324px' : start ? 'calc(320px - 2em)' : '0px'})`
       local('Roboto-Light'), local('DroidSans'), local('Tahoma');
   }
   .userscript {
+    transform: translateX(calc(320px - 1em));
+    &:hover {
+      transform: translateX(0);
+    }
+    &.disabled {
+      display: none;
+    }
+    &.hidden {
+      transform: translateX(346px);
+    }
+    &.show {
+      transform: translateX(0);
+    }
+    &.start {
+      transform: translateX(calc(320px - 2em));
+    }
     label {
       display: flex;
       padding: 0.5em 0;
@@ -333,6 +365,7 @@ transform:translateX(${hidden ? '324px' : start ? 'calc(320px - 2em)' : '0px'})`
       }
     }
     button {
+      flex: 1;
       margin: 1em 0;
       background-color: dodgerblue;
       color: white;
@@ -358,12 +391,12 @@ transform:translateX(${hidden ? '324px' : start ? 'calc(320px - 2em)' : '0px'})`
     width: 320px;
     background-color: white;
     z-index: 999999999999999;
-    box-shadow: 0 0 2px 0 rgba(0, 0, 0, 0.333);
+    box-shadow: 4px -4px 16px 0 rgba(0, 0, 0, 0.5);
     padding: 0 1em;
     border-radius: 0 0 0 1em;
     .h1 {
       font-size: 1.5em;
-      color: gray;
+      color: --text-color-normal;
       padding: 1em 0 0.5em 0;
       margin: 0;
       font-family: system;
