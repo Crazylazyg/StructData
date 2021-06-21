@@ -21,17 +21,45 @@
 
   function handleMessage(request, sender, sendResponse) {
     console.log('Messag: ', request)
+    if (request === 'localToggle') {
+      localToggle()
+    }
     hidden = request.hidden
   }
 
   browser.storage.onChanged.addListener((change, area) => {
-    initHidden = change.hidden.newValue
+    console.log('change', { change })
+    if (change.hidden) {
+      initHidden = change.hidden.newValue
+    }
   })
 
-  browser.storage.local.get('hidden').then((data) => {
-    // console.log('hidden', { data })
-    initHidden = data.hidden
+  browser.storage.local.get().then((data) => {
+    console.log('getStorage', { data })
+    if (data.hidden) {
+      let host = window.location.host
+      let sites = data.hosts || []
+      let index = sites.indexOf(host)
+      let inList = index !== -1
+      initHidden = data.hidden && !inList
+    }
   })
+
+  const localToggle = () => {
+    browser.storage.local.get().then((data) => {
+      let host = window.location.host
+      let sites = data.hosts || []
+      let index = sites.indexOf(host)
+      if (index === -1) {
+        sites.push(host)
+      } else {
+        sites.splice(index, 1)
+      }
+      console.log({ data: data.hosts, host, sites })
+      initHidden = index !== -1
+      browser.storage.local.set({ hosts: sites })
+    })
+  }
 
   browser.runtime.onMessage.addListener(handleMessage)
   window.addEventListener('mousemove', (event) => {
@@ -47,6 +75,7 @@
       }
     }
   })
+
   const elemHasText = (elm) => {
     if (elm.children.length === 0) {
       return elm
@@ -58,7 +87,7 @@
   }
 
   const onGlobalClick = (e) => {
-    // e.preventDefault()
+    e.preventDefault()
     e.stopPropagation()
     console.log('SDClick', e.path, elemHasText(e.srcElement))
     start = false
@@ -287,7 +316,9 @@
   </div> -->
   <!-- <div>{selectTag}</div> -->
   <div class="h1">Attributes</div>
+
   <div class="SDcontent">
+    <div class="values" />
     {#each attributes as a}
       <div class="values attributes">
         <input type="checkbox" name={a.nodeName} bind:group={selectValue} value={a.nodeName} />
@@ -305,13 +336,20 @@
 <style lang="scss">
   @media (prefers-color-scheme: dark) {
     .userscript {
-      border-left: 0.5px solid #3d3d3d;
-      border-bottom: 0.5px solid #3d3d3d;
+      textarea {
+        border-color: #3f3f3f;
+      }
+      .values {
+        border-bottom: 1px solid #3f3f3f !important;
+      }
+    }
+    .h1 {
+      color: #999;
     }
     .userscript,
-    .h1,
     textarea {
-      color: #aaaaaa;
+      border-color: #3d3d3d;
+      color: #ccc;
     }
     textarea::selection {
       color: #ffffff;
@@ -327,11 +365,12 @@
     font-family: system;
     font-style: normal;
     font-weight: 400;
-    src: local('.SFNSText-Light'), local('.HelveticaNeueDeskInterface-Light'), local('.LucidaGrandeUI'), local('Ubuntu Light'), local('Segoe UI Light'),
-      local('Roboto-Light'), local('DroidSans'), local('Tahoma');
+    src: local('.SFNSText'), local('.HelveticaNeueDeskInterface'), local('.LucidaGrandeUI'), local('Ubuntu'), local('Segoe UI'), local('Roboto'),
+      local('DroidSans'), local('Tahoma');
   }
+
   .userscript {
-    transform: translateX(calc(320px - 1em));
+    transform: translateX(calc(100% - 2em));
     &:hover {
       transform: translateX(0);
     }
@@ -339,21 +378,24 @@
       display: none;
     }
     &.hidden {
-      transform: translateX(346px);
+      transform: translateX(-100%);
     }
     &.show {
       transform: translateX(0);
     }
     &.start {
-      transform: translateX(calc(320px - 2em));
+      transform: translateX(calc(100% - 3em));
     }
+
     label {
       display: flex;
       padding: 0.5em 0;
       justify-content: flex-start;
+      align-items: center;
       span {
         /* flex: 1; */
-        width: 24%;
+        font-size: 1em;
+        width: 5.8em;
         padding-right: 1em;
       }
       input[type='checkbox'] {
@@ -371,7 +413,7 @@
       color: white;
       box-sizing: border-box;
       font: system;
-      padding: 0.5em 1em;
+      padding: 0.75em 1em;
       border: none;
       border-radius: 0.25em;
     }
@@ -390,14 +432,15 @@
     right: 0;
     width: 320px;
     background-color: white;
-    z-index: 999999999999999;
+    z-index: 9999999999999999999;
     box-shadow: 4px -4px 16px 0 rgba(0, 0, 0, 0.5);
     padding: 0 1em;
     border-radius: 0 0 0 1em;
     .h1 {
       font-size: 1.5em;
-      color: --text-color-normal;
-      padding: 1em 0 0.5em 0;
+      font-weight: 600;
+      padding: 1em 0;
+      color: gray;
       margin: 0;
       font-family: system;
     }
@@ -407,12 +450,13 @@
       min-height: 320px;
       margin: 0 0 1em 0;
       -webkit-appearance: none;
+      padding: 0.5em;
       border-radius: 0.5em;
     }
     .values {
       display: flex;
       align-items: center;
-      padding: 0.2em 0;
+      padding: 0.25em 0;
       span {
         color: lightblue;
       }
