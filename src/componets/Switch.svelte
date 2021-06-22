@@ -1,10 +1,11 @@
 <script>
   export let checked = false
+  export let onchange = () => {}
   let color = '#2196F3'
 </script>
 
 <label class="switch">
-  <input type="checkbox" bind:checked />
+  <input type="checkbox" on:change={onchange} bind:checked />
   <span class="slider" />
 </label>
 

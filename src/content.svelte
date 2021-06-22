@@ -12,6 +12,9 @@
   let hidden = false
   let initHidden = hidden
   let show = false
+  let refTextarea = null
+  let similarElms = []
+  let data = null
   let boxSize = {
     width: 0,
     height: 0,
@@ -24,7 +27,17 @@
     if (request === 'localToggle') {
       localToggle()
     }
-    hidden = request.hidden
+
+    if (request === 'checkCurrent') {
+      browser.storage.local.get().then((data) => {
+        if (data.hidden) {
+          let index = HostIndexInList(data.hosts)
+          let isShow = index !== -1
+          // console.log({ isShow })
+          sendResponse({ isShow })
+        }
+      })
+    }
   }
 
   browser.storage.onChanged.addListener((change, area) => {
@@ -34,12 +47,16 @@
     }
   })
 
+  const HostIndexInList = (sites = []) => {
+    let host = window.location.host
+    let index = sites.indexOf(host)
+    return index
+  }
+
   browser.storage.local.get().then((data) => {
     console.log('getStorage', { data })
     if (data.hidden) {
-      let host = window.location.host
-      let sites = data.hosts || []
-      let index = sites.indexOf(host)
+      let index = HostIndexInList(data.hosts)
       let inList = index !== -1
       initHidden = data.hidden && !inList
     }
@@ -47,9 +64,9 @@
 
   const localToggle = () => {
     browser.storage.local.get().then((data) => {
-      let host = window.location.host
       let sites = data.hosts || []
-      let index = sites.indexOf(host)
+      let host = window.location.host
+      let index = HostIndexInList(sites)
       if (index === -1) {
         sites.push(host)
       } else {
@@ -124,9 +141,6 @@
       window.addEventListener('click', onGlobalClick)
     }, 100)
   }
-
-  let similarElms = []
-  let data = ''
 
   $: {
     if (element) {
@@ -257,6 +271,18 @@
     findElement(elms, index)
     return ans
   }
+  const copy = () => {
+    refTextarea.focus()
+    refTextarea.select()
+
+    try {
+      var successful = document.execCommand('copy')
+      var msg = successful ? 'successful' : 'unsuccessful'
+      console.log('Fallback: Copying text command was ' + msg)
+    } catch (err) {
+      console.error('Fallback: Oops, unable to copy', err)
+    }
+  }
 </script>
 
 <div
@@ -273,7 +299,7 @@
 />
 <main class="userscript" class:disabled={initHidden} class:hidden class:start class:show>
   <label>
-    <button on:click={startInspect}>{!start ? 'Select Element' : 'End'}</button>
+    <button class="full" on:click={startInspect}>{!start ? 'Select Element' : 'End'}</button>
   </label>
   <label>
     <span>Similarity</span>
@@ -321,16 +347,19 @@
     <div class="values" />
     {#each attributes as a}
       <div class="values attributes">
-        <input type="checkbox" name={a.nodeName} bind:group={selectValue} value={a.nodeName} />
         <label class="dataName" for={a.nodeName}>{a.nodeName} :</label>
         <div class="dataString">{a.nodeValue}</div>
+        <input type="checkbox" name={a.nodeName} bind:group={selectValue} value={a.nodeName} />
       </div>
     {/each}
   </div>
   <!-- <p>text: {element.innerText || ''}</p> -->
-  <div class="h1">Find ({similarElms?.length || 0})</div>
-  <!-- <div>{selectValue}</div> -->
-  <textarea value={data} />
+  <div class="titleWithButton">
+    <div class="h1">Find ({similarElms?.length || 0})</div>
+    <!-- <div>{selectValue}</div> -->
+    <button disabled={!data} on:click={copy}>Copy</button>
+  </div>
+  <textarea value={data} bind:this={refTextarea} />
 </main>
 
 <style lang="scss">
@@ -343,18 +372,22 @@
         border-bottom: 1px solid #3f3f3f !important;
       }
     }
+
     .h1 {
       color: #999;
     }
+
     .userscript,
     textarea {
       border-color: #3d3d3d;
       color: #ccc;
     }
+
     textarea::selection {
       color: #ffffff;
       background-color: dodgerblue;
     }
+
     main.userscript,
     textarea {
       background-color: #343536;
@@ -386,7 +419,10 @@
     &.start {
       transform: translateX(calc(100% - 3em));
     }
-
+    input[type='checkbox'] {
+      width: 1.5em;
+      height: 1.5em;
+    }
     label {
       display: flex;
       padding: 0.5em 0;
@@ -407,7 +443,10 @@
       }
     }
     button {
-      flex: 1;
+      &.full {
+        width: 100%;
+      }
+      /* flex: 1; */
       margin: 1em 0;
       background-color: dodgerblue;
       color: white;
@@ -416,6 +455,9 @@
       padding: 0.75em 1em;
       border: none;
       border-radius: 0.25em;
+      &:disabled {
+        opacity: 0.5;
+      }
     }
     .SDcontent {
       max-height: 320px;
@@ -436,6 +478,10 @@
     box-shadow: 4px -4px 16px 0 rgba(0, 0, 0, 0.5);
     padding: 0 1em;
     border-radius: 0 0 0 1em;
+    .titleWithButton {
+      display: flex;
+      justify-content: space-between;
+    }
     .h1 {
       font-size: 1.5em;
       font-weight: 600;
@@ -465,16 +511,17 @@
 
       input {
         flex: 1;
-        margin: 0 0.5em;
+        margin: 0 0 0 0.5em;
       }
       .dataName {
-        flex: 2;
+        flex: 1.5;
       }
       .dataString {
         flex: 7;
         overflow-x: auto;
         text-overflow: ellipsis;
         font-size: 0.75em;
+        user-select: all;
       }
     }
   }

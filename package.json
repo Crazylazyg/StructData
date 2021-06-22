@@ -21,6 +21,7 @@
     "rollup-plugin-chrome-extension": "^3.5.7",
     "rollup-plugin-copy": "^3.4.0",
     "rollup-plugin-css-only": "^3.1.0",
+    "rollup-plugin-empty-dir": "^1.0.4",
     "rollup-plugin-livereload": "^2.0.0",
     "rollup-plugin-postcss": "^4.0.0",
     "rollup-plugin-scss": "^2.6.1",

@@ -1,27 +1,18 @@
 <script>
-  import Switch from './componets/Switch.svelte'
-  let value = ''
+  import Switch from '../componets/Switch.svelte'
   let hidden = false
+  let curretnShow = false
   let show = !hidden
-  browser.storage.local.get().then((data) => {
-    // console.log('getStorage', { data })
-    // hidden = data.hidden
-    show = !data.hidden
-  })
-  $: {
-    hidden = !show
-    browser.storage.local.set({ hidden: !show })
-  }
-  const updateValue = (newValue) => {
-    value = newValue
-  }
-  const message = (msg) => {
+
+  const message = (msg, callback) => {
     browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
       browser.tabs.sendMessage(tabs[0].id, msg).then((response) => {
-        console.log(response.message)
+        confirm(JSON.stringify(response))
+        callback && callback(response)
       })
     })
   }
+
   const comfire = (msg = 'Done') => {
     browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
       browser.tabs.sendMessage(tabs[0].id, { comfire: 'app:' + msg }).then((response) => {
@@ -30,42 +21,30 @@
     })
   }
 
+  browser.storage.local.get().then((data) => {
+    show = !data.hidden
+    hidden = data.hidden
+  })
+
+  message('checkCurrent', (r) => {
+    // confirm(JSON.stringify(r))
+    curretnShow = r.isShow
+  })
+
   function handleMessage(request, sender, sendResponse) {
     console.log('App Messag: ', request)
     sendResponse({ response: 'Response from app script' })
   }
 
-  browser.storage.onChanged.addListener((changes, name) => {
-    // console.log('sotrage', changes, name)
-    updateValue(changes.action.newValue)
-    confirm('storage value:' + value)
-  })
-
   browser.runtime.onMessage.addListener(handleMessage)
-  let i = 1
-
-  const add = () => {
-    confirm('storage value:' + value)
-  }
-  function change() {
-    console.log('change')
-    let tabs = browser.tabs.query({ active: true, currentWindow: true })
-    tabs.then((tabs) => {
-      browser.tabs.sendMessage(tabs[0].id, { message: 'hi' }).then((response) => {
-        comfire(response.message)
-      })
-    })
-  }
-  const toggle = () => {
-    browser.storage.local.get().then((data) => {
-      // comfire(JSON.stringify(data))
-      browser.storage.local.set({ hidden: !data.hidden })
-      hidden = !data.hidden
-    })
-  }
 
   const localToggle = () => {
     message('localToggle')
+  }
+  const updateGlobal = () => {
+    hidden = show
+    browser.storage.local.set({ hidden: show })
+    comfire('$')
   }
 </script>
 
@@ -75,9 +54,9 @@
     <a href="https://github.com/Crazylazyg/StructData">GitHub</a>
   </div>
   <div class="line" />
-  <span>Global: <Switch bind:checked={show} /></span>
+  <span>Global: <Switch onchange={updateGlobal} bind:checked={show} /></span>
   <!-- <button>{hidden ? 'Hidden' : 'Show'}</button> -->
-  <button disabled={show} on:click={localToggle}>Toggle Current</button>
+  <button disabled={show} on:click={localToggle}>Toggle Current {curretnShow ? 'Show' : 'Hidden'}</button>
 </main>
 
 <style lang="scss">
@@ -110,7 +89,7 @@
   main {
     display: flex;
     flex-direction: column;
-    font-family: system;
+    font-family: system, sans-serif;
     padding: 1em;
     min-width: 200px;
   }
