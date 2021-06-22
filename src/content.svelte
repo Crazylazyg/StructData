@@ -30,18 +30,16 @@
 
     if (request === 'checkCurrent') {
       browser.storage.local.get().then((data) => {
-        if (data.hidden) {
-          let index = HostIndexInList(data.hosts)
-          let isShow = index !== -1
-          // console.log({ isShow })
-          sendResponse({ isShow })
-        }
+        let index = HostIndexInList(data.hosts)
+        let isShow = index !== -1
+        console.log({ isShow })
+        browser.storage.local.set({ isShow })
       })
     }
   }
 
   browser.storage.onChanged.addListener((change, area) => {
-    console.log('change', { change })
+    console.log('content change', { change })
     if (change.hidden) {
       initHidden = change.hidden.newValue
     }

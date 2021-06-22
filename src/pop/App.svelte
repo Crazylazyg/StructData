@@ -4,11 +4,10 @@
   let curretnShow = false
   let show = !hidden
 
-  const message = (msg, callback) => {
+  const message = (msg) => {
     browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
       browser.tabs.sendMessage(tabs[0].id, msg).then((response) => {
-        confirm(JSON.stringify(response))
-        callback && callback(response)
+        console.log({ response })
       })
     })
   }
@@ -26,10 +25,14 @@
     hidden = data.hidden
   })
 
-  message('checkCurrent', (r) => {
-    // confirm(JSON.stringify(r))
-    curretnShow = r.isShow
+  browser.storage.onChanged.addListener((change, area) => {
+    console.log('change', { change })
+    if (change.isShow !== undefined) {
+      curretnShow = change.isShow?.newValue
+    }
   })
+
+  message('checkCurrent')
 
   function handleMessage(request, sender, sendResponse) {
     console.log('App Messag: ', request)
@@ -39,6 +42,7 @@
   browser.runtime.onMessage.addListener(handleMessage)
 
   const localToggle = () => {
+    curretnShow = !curretnShow
     message('localToggle')
   }
   const updateGlobal = () => {
@@ -56,7 +60,7 @@
   <div class="line" />
   <span>Global: <Switch onchange={updateGlobal} bind:checked={show} /></span>
   <!-- <button>{hidden ? 'Hidden' : 'Show'}</button> -->
-  <button disabled={show} on:click={localToggle}>Toggle Current {curretnShow ? 'Show' : 'Hidden'}</button>
+  <button disabled={show} on:click={localToggle}>{curretnShow ? 'Hidden ' : 'Show '}Current </button>
 </main>
 
 <style lang="scss">
